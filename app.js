@@ -26,7 +26,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://your-frontend-url.vercel.app"
+    "https://ems-frontend-ten-kappa.vercel.app"
   ],
   credentials: true
 }));
@@ -42,6 +42,7 @@ app.use("/api/salary", salaryRouter);
 app.use("/api/leave", leaveRouter);
 app.use("/api/adminDashboard", dasboardRouter);
 app.use("/api/setting", settingRouter);
+
 
 // Health check route
 app.get('/api/health', (req, res) => {
