@@ -2,6 +2,7 @@ import User from "../models/User.js"
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 
+
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -41,5 +42,24 @@ const verify = (req, res) => {
         })
 }
 
+const updateProfileImage = async (req, res)=>{
+  try {
+    const userId = req.params.id;
 
-export { login, verify }
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { profileImage: req.file.filename },
+      { new: true }
+    );
+
+   return res.json({ success: true, user });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+  
+
+}
+
+
+export { login, verify, updateProfileImage }
