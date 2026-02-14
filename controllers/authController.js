@@ -1,6 +1,7 @@
 import User from "../models/User.js"
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import imagekit from "../config/imagekit.js"
 
 
 const login = async (req, res) => {
@@ -42,24 +43,35 @@ const verify = (req, res) => {
         })
 }
 
-const updateProfileImage = async (req, res)=>{
+const updateProfileImage = async (req, res) => {
   try {
     const userId = req.params.id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, error: "User not found" });
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { profileImage: req.file.filename },
-      { new: true }
-    );
+    //  Delete old image from ImageKit if exists
+    if (user.profileImageFileId) {
+      await imagekit.deleteFile(user.profileImageFileId);
+    }
 
-   return res.json({ success: true, user });
+    //  Upload new image
+    const uploadResponse = await imagekit.upload({
+      file: req.file.buffer,
+      fileName: `user-${Date.now()}`,
+      folder: "user-image"
+    });
+
+    //  Update user in DB
+    user.profileImage = uploadResponse.url;
+    user.profileImageFileId = uploadResponse.fileId;
+    await user.save();
+
+    res.json({ success: true, user });
 
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
-  
-
-}
+};
 
 
 export { login, verify, updateProfileImage }

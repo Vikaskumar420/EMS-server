@@ -8,6 +8,6 @@ const router = express.Router();
 
 router.post("/login", login);
 router.get("/verify", authMiddleware, verify);
-router.put("/update-profile-image/:id",authMiddleware, upload.single("profileImage"), updateProfileImage)
+router.put("/update-profile-image/:id",authMiddleware, upload.single("image"), updateProfileImage)
 
 export default router;

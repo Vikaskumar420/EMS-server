@@ -4,67 +4,98 @@ import User from "../models/User.js"
 import bcrypt from 'bcrypt'
 import path from "path"
 import Department from '../models/department.js'
+import imagekit from "../config/imagekit.js"
 
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "public/uploads")
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname))
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"), false);
     }
+  }
 });
 
-const upload = multer({ storage: storage })
-
 const addEmployee = async (req, res) => {
-    try {
-        const {
-            name,
-            email,
-            employeeId,
-            dob,
-            gender,
-            maritalStatus,
-            designation,
-            department,
-            salary,
-            password,
-            role
-        } = req.body;
+  try {
+    const {
+      name,
+      email,
+      employeeId,
+      dob,
+      gender,
+      maritalStatus,
+      designation,
+      department,
+      salary,
+      password,
+      role
+    } = req.body;
 
-        const user = await User.findOne({ email })
-        if (user) {
-            return res.status(400).json({ success: false, error: "user already registerd in emp" })
-        }
-
-        const hashPassword = await bcrypt.hash(password, 10)
-        const newUser = new User({
-            name,
-            email,
-            password: hashPassword,
-            role,
-            profileImage: req.file ? req.file.filename : "",
-        });
-        const savedUser = await newUser.save();
-
-        const newEmployee = new Employee({
-            userId: savedUser._id,
-            employeeId,
-            dob,
-            gender,
-            maritalStatus,
-            designation,
-            department,
-            salary,
-        })
-        await newEmployee.save()
-        return res.status(200).json({ success: true, message: "employee created" })
-
-    } catch (error) {
-        return res.status(500).json({ success: false, error: "server error in adding employee" })
+    const user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({
+        success: false,
+        error: "User already registered"
+      });
     }
-}
+
+    const hashPassword = await bcrypt.hash(password, 10);
+
+    let imageUrl = "";
+
+    //  Upload to ImageKit if file exists
+    if (req.file) {
+      const uploadResponse = await imagekit.upload({
+        file: req.file.buffer,
+        fileName: `user-${Date.now()}`,
+        folder: "user-image"
+      });
+
+      imageUrl = uploadResponse.url;
+    }
+
+    const newUser = new User({
+      name,
+      email,
+      password: hashPassword,
+      role,
+      profileImage: imageUrl,
+      profileImageFileId: uploadResponse.fileId
+    });
+
+    const savedUser = await newUser.save();
+
+    const newEmployee = new Employee({
+      userId: savedUser._id,
+      employeeId,
+      dob,
+      gender,
+      maritalStatus,
+      designation,
+      department,
+      salary
+    });
+
+    await newEmployee.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Employee created"
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
 
 const getEmployees = async (req, res) => {
     try {
@@ -133,7 +164,7 @@ const updatEmployee = async (req, res) => {
             maritalStatus, designation, salary, department,
         })
 
-        if (!updatEmployee || !updateUser) {
+        if (!updateEmployee || !updateUser) {
             return res
                 .status(404)
                 .json({ success: false, error: " document not found" })
