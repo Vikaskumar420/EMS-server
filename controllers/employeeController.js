@@ -83,6 +83,9 @@ const addEmployee = async (req, res) => {
     });
 
   } catch (error) {
+    console.log("❌ ADD EMPLOYEE ERROR:", error);
+  console.log("❌ ERROR MESSAGE:", error.message);
+  console.log("❌ ERROR STACK:", error.stack);
     return res.status(500).json({
       success: false,
       error: error.message
