@@ -46,27 +46,34 @@ const verify = (req, res) => {
 const updateProfileImage = async (req, res) => {
   try {
     const userId = req.params.id;
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, error: "User not found" });
 
-    //  Delete old image from ImageKit if exists
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "No file uploaded" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Delete old image
     if (user.profileImageFileId) {
       await imagekit.deleteFile(user.profileImageFileId);
     }
 
-    //  Upload new image
+    // Upload new image
     const uploadResponse = await imagekit.upload({
-      file: req.file.buffer,
-      fileName: `user-${Date.now()}`,
+      file: req.file.buffer.toString("base64"),
+      fileName: `user-${Date.now()}.jpg`,
       folder: "user-image"
     });
 
-    //  Update user in DB
     user.profileImage = uploadResponse.url;
     user.profileImageFileId = uploadResponse.fileId;
+
     await user.save();
 
-    res.json({ success: true, user });
+    res.status(200).json({ success: true, user });
 
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
