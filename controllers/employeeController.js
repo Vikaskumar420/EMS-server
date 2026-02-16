@@ -83,9 +83,6 @@ const addEmployee = async (req, res) => {
     });
 
   } catch (error) {
-    console.log("❌ ADD EMPLOYEE ERROR:", error);
-  console.log("❌ ERROR MESSAGE:", error.message);
-  console.log("❌ ERROR STACK:", error.stack);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -155,6 +152,26 @@ const updatEmployee = async (req, res) => {
         .json({ success: false, error: " user not found" })
     }
 
+    //  If new image uploaded
+    if (req.file) {
+
+      //  Delete old image from ImageKit
+      if (user.profileImageFileId) {
+        await imagekit.deleteFile(user.profileImageFileId);
+      }
+
+      //  Upload new image
+      const uploadResponse = await imagekit.upload({
+        file: req.file.buffer.toString("base64"),
+        fileName: `employee-${Date.now()}`,
+        folder: "user-image"
+      });
+
+      // Update user image fields
+      user.profileImage = uploadResponse.url;
+      user.profileImageFileId = uploadResponse.fileId;
+    }
+
     const updateUser = await User.findByIdAndUpdate({ _id: employee.userId }, { name })
     const updateEmployee = await Employee.findByIdAndUpdate({ _id: id }, {
       maritalStatus, designation, salary, department,
@@ -169,6 +186,8 @@ const updatEmployee = async (req, res) => {
     res.status(200).json({ success: true, message: 'employee Updated' })
 
   } catch (error) {
+     console.log("UPDATE EMPLOYEE ERROR:", error);
+    
     return res.status(500).json({ success: false, error: "update employee server error" })
 
   }

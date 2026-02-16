@@ -7,7 +7,7 @@ const router = express.Router();
 router.post("/add", middleware, upload.single('image'), addEmployee)
 router.get("/", middleware, getEmployees)
 router.get("/:id", middleware, getEmployee)
-router.put("/:id", middleware, updatEmployee)
+router.put("/:id", middleware, upload.single('image'), updatEmployee)
 router.get("/department/:id", middleware, getEmployeesByDepId)
 
 
