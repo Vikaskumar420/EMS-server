@@ -157,7 +157,11 @@ const updatEmployee = async (req, res) => {
 
       //  Delete old image from ImageKit
       if (user.profileImageFileId) {
-        await imagekit.deleteFile(user.profileImageFileId);
+        try {
+          await imagekit.deleteFile(user.profileImageFileId);
+        } catch (error) {
+          console.log("Old image not found, skipping delete");
+        }
       }
 
       //  Upload new image
@@ -173,6 +177,7 @@ const updatEmployee = async (req, res) => {
     }
 
     const updateUser = await User.findByIdAndUpdate({ _id: employee.userId }, { name })
+    await user.save();
     const updateEmployee = await Employee.findByIdAndUpdate({ _id: id }, {
       maritalStatus, designation, salary, department,
     })
