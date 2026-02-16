@@ -7,19 +7,9 @@ import Department from '../models/department.js'
 import imagekit from "../config/imagekit.js"
 
 
-const storage = multer.memoryStorage();
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"), false);
-    }
-  }
-});
+const storage = multer.memoryStorage();   // 👈 change this
+const upload = multer({ storage });
 
 const addEmployee = async (req, res) => {
   try {
@@ -36,6 +26,7 @@ const addEmployee = async (req, res) => {
       password,
       role
     } = req.body;
+    console.log("FILE CHECK:", req.file);
 
     const user = await User.findOne({ email });
     if (user) {
@@ -48,16 +39,18 @@ const addEmployee = async (req, res) => {
     const hashPassword = await bcrypt.hash(password, 10);
 
     let imageUrl = "";
+    let fileId = "";
 
-    //  Upload to ImageKit if file exists
     if (req.file) {
       const uploadResponse = await imagekit.upload({
-        file: req.file.buffer,
+        file: req.file.buffer.toString("base64"),   // 👈 IMPORTANT FIX
         fileName: `user-${Date.now()}`,
         folder: "user-image"
       });
+      console.log("File:", req.file);
 
       imageUrl = uploadResponse.url;
+      fileId = uploadResponse.fileId;
     }
 
     const newUser = new User({
@@ -66,7 +59,7 @@ const addEmployee = async (req, res) => {
       password: hashPassword,
       role,
       profileImage: imageUrl,
-      profileImageFileId: uploadResponse.fileId
+      profileImageFileId: fileId
     });
 
     const savedUser = await newUser.save();
@@ -98,94 +91,94 @@ const addEmployee = async (req, res) => {
 };
 
 const getEmployees = async (req, res) => {
-    try {
-        const employees = await Employee.find().populate('userId', { password: 0 }).populate('department')
-        return res.status(200).json({ success: true, employees })
-    } catch (error) {
-       return res.status(500).json({ success: false, error: "get employees server error" })
-    }
+  try {
+    const employees = await Employee.find().populate('userId', { password: 0 }).populate('department')
+    return res.status(200).json({ success: true, employees })
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "get employees server error" })
+  }
 }
 
 const getEmployee = async (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    try {
+  try {
 
-        let employee;
-        employee = await Employee.findById({ _id: id })
-            .populate('userId', { password: 0 })
-            .populate('department')
-        if (!employee) {
-            employee = await Employee.findOne({ userId: id })
-                .populate('userId', { password: 0 })
-                .populate('department');
-        }
-        if (!employee) {
-            return res.status(404).json({
-                success: false,
-                error: "Employee not found"
-            });
-        }
-
-
-        return res.status(200).json({ success: true, employee })
-    } catch (error) {
-        return res.status(500).json({ success: false, error: "get employee server error" })
+    let employee;
+    employee = await Employee.findById({ _id: id })
+      .populate('userId', { password: 0 })
+      .populate('department')
+    if (!employee) {
+      employee = await Employee.findOne({ userId: id })
+        .populate('userId', { password: 0 })
+        .populate('department');
     }
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        error: "Employee not found"
+      });
+    }
+
+
+    return res.status(200).json({ success: true, employee })
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "get employee server error" })
+  }
 }
 
 const updatEmployee = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const {
-            name,
-            maritalStatus,
-            designation,
-            department,
-            salary,
-        } = req.body;
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      maritalStatus,
+      designation,
+      department,
+      salary,
+    } = req.body;
 
-        const employee = await Employee.findById({ _id: id })
-        if (!employee) {
-            return res
-                .status(404)
-                .json({ success: false, error: " employee not found" })
-        }
-
-        const user = await User.findById({ _id: employee.userId })
-        if (!user) {
-            return res
-                .status(404)
-                .json({ success: false, error: " user not found" })
-        }
-
-        const updateUser = await User.findByIdAndUpdate({ _id: employee.userId }, { name })
-        const updateEmployee = await Employee.findByIdAndUpdate({ _id: id }, {
-            maritalStatus, designation, salary, department,
-        })
-
-        if (!updateEmployee || !updateUser) {
-            return res
-                .status(404)
-                .json({ success: false, error: " document not found" })
-        }
-
-        res.status(200).json({ success: true, message: 'employee Updated' })
-
-    } catch (error) {
-        return res.status(500).json({ success: false, error: "update employee server error" })
-
+    const employee = await Employee.findById({ _id: id })
+    if (!employee) {
+      return res
+        .status(404)
+        .json({ success: false, error: " employee not found" })
     }
+
+    const user = await User.findById({ _id: employee.userId })
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, error: " user not found" })
+    }
+
+    const updateUser = await User.findByIdAndUpdate({ _id: employee.userId }, { name })
+    const updateEmployee = await Employee.findByIdAndUpdate({ _id: id }, {
+      maritalStatus, designation, salary, department,
+    })
+
+    if (!updateEmployee || !updateUser) {
+      return res
+        .status(404)
+        .json({ success: false, error: " document not found" })
+    }
+
+    res.status(200).json({ success: true, message: 'employee Updated' })
+
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "update employee server error" })
+
+  }
 }
 
 const getEmployeesByDepId = async (req, res) => {
-    const { id } = req.params;
-    try {
-        const employees = await Employee.find({ department: id })
-        return res.status(200).json({ success: true, employees })
-    } catch (error) {
-        return res.status(500).json({ success: false, error: "get employeesByDepId server error" })
-    }
+  const { id } = req.params;
+  try {
+    const employees = await Employee.find({ department: id })
+    return res.status(200).json({ success: true, employees })
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "get employeesByDepId server error" })
+  }
 }
 
 
